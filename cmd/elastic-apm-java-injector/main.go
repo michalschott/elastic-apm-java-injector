@@ -17,7 +17,7 @@ import (
 )
 
 func mutate(body []byte) ([]byte, error) {
-	log.Info("recv: %s\n", string(body))
+	log.Info("recv: ", string(body))
 
 	admReview := v1beta1.AdmissionReview{}
 	if err := json.Unmarshal(body, &admReview); err != nil {
@@ -43,10 +43,10 @@ func mutate(body []byte) ([]byte, error) {
 		p := []m.PatchOperation{}
 
 		p = append(p, m.AddVolume(pod)...)
-		p = append(p, m.AddInitContainer(pod)...)
-		p = append(p, m.MutateContainers(pod)...)
+		p = append(p, m.AddInitContainer(pod, config.initContainerImage)...)
+		p = append(p, m.MutateContainers(pod, config.envVars)...)
 
-		log.Debug("path: %v\n", p)
+		log.Debug("path: ", p)
 		resp.Patch, err = json.Marshal(p)
 		if err != nil {
 			return nil, err
@@ -64,7 +64,7 @@ func mutate(body []byte) ([]byte, error) {
 		}
 	}
 
-	log.Info("resp: %s\n", string(responseBody))
+	log.Info("resp: ", string(responseBody))
 
 	return responseBody, nil
 }
@@ -92,25 +92,75 @@ func handleMutate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type injectorConfig struct {
+	logLevel           string
+	initContainerImage string
+	envVars            []corev1.EnvVar
+}
+
+var config injectorConfig
+
+const (
+	defaultLogLevel              = "info"
+	defaultInitContainerImage    = "docker.elastic.co/observability/apm-agent-java:1.12.0"
+	defaultElasticApmServerUrl   = "http://apm-server-apm-http:8200"
+	defaultElasticApmServiceName = "defaultServiceName"
+)
+
+func init() {
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+}
+
 func main() {
 	logLevel, ok := os.LookupEnv("LOG_LEVEL")
 	if !ok {
-		log.Info("LOG_LEVEL not set, defaulting to info")
-		logLevel = "info"
+		log.Info("LOG_LEVEL not set, defaulting to ", defaultLogLevel)
+		config.logLevel = defaultLogLevel
 	} else {
 		log.Info("LOG_LEVEL set to ", logLevel)
+		config.logLevel = logLevel
 	}
 
-	log.SetFormatter(&log.JSONFormatter{})
-	log.SetOutput(os.Stdout)
-	switch logLevel {
-	case "debug":
-		log.SetLevel(log.WarnLevel)
-	case "error":
+	switch {
+	case config.logLevel == "debug":
+		log.SetLevel(log.DebugLevel)
+	case config.logLevel == "error":
 		log.SetLevel(log.ErrorLevel)
-	default:
+	case config.logLevel == "info":
 		log.SetLevel(log.InfoLevel)
 	}
+
+	initContainerImage, ok := os.LookupEnv("INIT_CONTAINER_IMAGE")
+	if !ok {
+		log.Debug("INIT_CONTAINER_IMAGE not set, defaulting to ", defaultInitContainerImage)
+		config.initContainerImage = defaultInitContainerImage
+	} else {
+		config.initContainerImage = initContainerImage
+	}
+	log.Debug("initContainerImage = " + config.initContainerImage)
+
+	elasticApmServerUrl, ok := os.LookupEnv("ELASTIC_APM_SERVER_URL")
+	if !ok {
+		log.Debug("ELASTIC_APM_SERVER_URL not set, defaulting to ", defaultElasticApmServerUrl)
+		elasticApmServerUrl = defaultElasticApmServerUrl
+	}
+	config.envVars = append(config.envVars, corev1.EnvVar{
+		Name:  "ELASTIC_APM_SERVER_URL",
+		Value: elasticApmServerUrl,
+	})
+	log.Debug("elasticApmServerUrl = " + elasticApmServerUrl)
+
+	elasticApmServiceName, ok := os.LookupEnv("ELASTIC_APM_SERVICE_NAME")
+	if !ok {
+		log.Debug("ELASTIC_APM_SERVICE_NAME not set, defaulting to ", defaultElasticApmServiceName)
+		elasticApmServiceName = defaultElasticApmServiceName
+	}
+	config.envVars = append(config.envVars, corev1.EnvVar{
+		Name:  "ELASTIC_APM_SERVICE_NAME",
+		Value: elasticApmServiceName,
+	})
+	log.Debug("elasticApmServerUrl = " + elasticApmServiceName)
 
 	mux := http.NewServeMux()
 

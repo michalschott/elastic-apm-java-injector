@@ -28,11 +28,11 @@ func AddVolume(pod *corev1.Pod) (patch []PatchOperation) {
 	return patch
 }
 
-func AddInitContainer(pod *corev1.Pod) (patch []PatchOperation) {
+func AddInitContainer(pod *corev1.Pod, initContainerImage string) (patch []PatchOperation) {
 	initContainers := []corev1.Container{}
 
 	initContainer := corev1.Container{
-		Image: "docker.elastic.co/observability/apm-agent-java:1.12.0",
+		Image: initContainerImage,
 		Name:  "apm-agent-java",
 		Command: []string{
 			"cp",
@@ -67,7 +67,7 @@ func AddInitContainer(pod *corev1.Pod) (patch []PatchOperation) {
 	return patch
 }
 
-func MutateContainers(pod *corev1.Pod) (patch []PatchOperation) {
+func MutateContainers(pod *corev1.Pod, extraEnvVars []corev1.EnvVar) (patch []PatchOperation) {
 	containers := []corev1.Container{}
 	envVar := corev1.EnvVar{
 		Name:  "JAVA_TOOL_OPTIONS",
@@ -80,6 +80,9 @@ func MutateContainers(pod *corev1.Pod) (patch []PatchOperation) {
 
 	for _, v := range pod.Spec.Containers {
 		v.Env = append(v.Env, envVar)
+		for _, envVar := range extraEnvVars {
+			v.Env = append(v.Env, envVar)
+		}
 		v.VolumeMounts = append(v.VolumeMounts, volumeMount)
 		containers = append(containers, v)
 		patch = append(patch, PatchOperation{
