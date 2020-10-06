@@ -6,7 +6,7 @@ kind load docker-image local/elastic-apm-java-injector:latest
 
 sed "s/CA_BUNDLE/$CA_BUNDLE/" deploy.yaml | kubectl apply -f-
 
-kubectl delete rs -l app=elastic-apm-java-injector
+kubectl delete pod -l app=elastic-apm-java-injector
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -46,4 +46,8 @@ spec:
         image: alpine:3.12
         imagePullPolicy: IfNotPresent
         name: alpine
+      terminationGracePeriodSeconds: 5
 EOF
+
+kubectl -n test delete pod --all
+

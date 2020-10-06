@@ -35,7 +35,9 @@ spec:
         imagePullPolicy: Never
         env:
         - name: LOG_LEVEL
-          value: debug
+          value: "debug"
+        - name: ELASTIC_APM_SERVICE_NAME
+          value: "test app"
         volumeMounts:
         - name: ssl
           mountPath: "/ssl"
