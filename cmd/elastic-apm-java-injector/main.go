@@ -52,8 +52,9 @@ func mutate(body []byte, verbose bool) ([]byte, error) {
 		p = append(p, mutateContainers(pod)...)
 
 		resp.Patch, err = json.Marshal(p)
-
-		resp.Patch, err = json.Marshal(p)
+		if err != nil {
+			return nil, err
+		}
 
 		resp.Result = &metav1.Status{
 			Status: "Success",
@@ -174,7 +175,12 @@ func handleMutate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(mutated)
+	_, err = w.Write(mutated)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", err)
+	}
 }
 
 func main() {

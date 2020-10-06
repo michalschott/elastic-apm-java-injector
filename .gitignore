@@ -1,2 +1,4 @@
 build
 hack/elastic-apm-java-injector.*
+hack/csr.conf
+

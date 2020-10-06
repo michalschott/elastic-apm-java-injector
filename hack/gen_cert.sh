@@ -84,3 +84,5 @@ done
 echo "... creating ${app}.pem cert file"
 echo "\$serverCert | openssl base64 -d -A -out ${APP}.pem"
 echo ${serverCert} | openssl base64 -d -A -out ${APP}.pem
+
+kubectl create secret generic elastic-apm-java-injector-certs --from-file=elastic-apm-java-injector.pem=elastic-apm-java-injector.pem --from-file=elastic-apm-java-injector.key=elastic-apm-java-injector.key
