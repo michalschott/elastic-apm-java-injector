@@ -11,13 +11,9 @@ import (
 	v1beta1 "k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
 
-type patchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value,omitempty"`
-}
+	m "github.com/michalschott/elastic-apm-java-injector/pkg/mutate"
+)
 
 func mutate(body []byte, verbose bool) ([]byte, error) {
 	if verbose {
@@ -45,11 +41,11 @@ func mutate(body []byte, verbose bool) ([]byte, error) {
 		resp.UID = ar.UID
 		pT := v1beta1.PatchTypeJSONPatch
 		resp.PatchType = &pT
-		p := []patchOperation{}
+		p := []m.PatchOperation{}
 
-		p = append(p, addVolume(pod)...)
-		p = append(p, addInitContainer(pod)...)
-		p = append(p, mutateContainers(pod)...)
+		p = append(p, m.AddVolume(pod)...)
+		p = append(p, m.AddInitContainer(pod)...)
+		p = append(p, m.MutateContainers(pod)...)
 
 		resp.Patch, err = json.Marshal(p)
 		if err != nil {
@@ -73,88 +69,6 @@ func mutate(body []byte, verbose bool) ([]byte, error) {
 	}
 
 	return responseBody, nil
-}
-
-func addVolume(pod *corev1.Pod) (patch []patchOperation) {
-	volume := corev1.Volume{
-		Name: "elastic-apm-agent",
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{},
-		},
-	}
-
-	volumes := append(pod.Spec.Volumes, volume)
-	patch = append(patch, patchOperation{
-		Op:    "replace",
-		Path:  "/spec/volumes",
-		Value: volumes,
-	})
-
-	return patch
-}
-
-func addInitContainer(pod *corev1.Pod) (patch []patchOperation) {
-	initContainers := []corev1.Container{}
-
-	initContainer := corev1.Container{
-		Image: "docker.elastic.co/observability/apm-agent-java:1.12.0",
-		Name:  "apm-agent-java",
-		Command: []string{
-			"cp",
-			"-v",
-			"/usr/agent/elastic-apm-agent.jar",
-			"/elastic/apm/agent",
-		},
-		VolumeMounts: []corev1.VolumeMount{
-			corev1.VolumeMount{
-				Name:      "elastic-apm-agent",
-				MountPath: "/elastic/apm/agent",
-			},
-		},
-	}
-
-	initContainers = append(initContainers, initContainer)
-
-	var op string
-	if len(pod.Spec.InitContainers) != 0 {
-		initContainers = append(initContainers, pod.Spec.InitContainers...)
-		op = "replace"
-	} else {
-		op = "add"
-	}
-
-	patch = append(patch, patchOperation{
-		Op:    op,
-		Path:  "/spec/initContainers",
-		Value: initContainers,
-	})
-
-	return patch
-}
-
-func mutateContainers(pod *corev1.Pod) (patch []patchOperation) {
-	containers := []corev1.Container{}
-	envVar := corev1.EnvVar{
-		Name:  "JAVA_TOOL_OPTIONS",
-		Value: "-javaagent:/elastic/apm/agent/elastic-apm-agent.jar",
-	}
-	volumeMount := corev1.VolumeMount{
-		Name:      "elastic-apm-agent",
-		MountPath: "/elastic/apm/agent",
-	}
-
-	for _, v := range pod.Spec.Containers {
-		v.Env = append(v.Env, envVar)
-		v.VolumeMounts = append(v.VolumeMounts, volumeMount)
-		containers = append(containers, v)
-		patch = append(patch, patchOperation{
-			Op:    "replace",
-			Path:  "/spec/containers",
-			Value: containers,
-		})
-	}
-
-	return patch
 }
 
 func handleMutate(w http.ResponseWriter, r *http.Request) {

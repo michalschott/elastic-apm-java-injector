@@ -11,7 +11,7 @@ Rinse and repeat with build and deploy steps.
 
 # TO-DO:
 - add some flags (ie loglevel)
-- move mutating functions from main.go to dedicated pkg
+- ~~move mutating functions from main.go to dedicated pkg~~
 - inject more variables, ideally configurable with annotations
 - configurable image to inject
 ```
