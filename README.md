@@ -1,5 +1,7 @@
 elastic-apm-java-injector was born to automate process described [here](https://www.elastic.co/blog/using-elastic-apm-java-agent-on-kubernetes-k8s).
 
+ensure to label your desired namespace with `elastic-apm-java-injector: enabled`
+
 # Development
 - install [kind](https://github.com/kubernetes-sigs/kind)
 - create kind cluster (hack/kind_up.sh)
@@ -12,8 +14,7 @@ Rinse and repeat with build and deploy steps.
 # TO-DO:
 - ~~add some flags (ie loglevel)~~
 - ~~move mutating functions from main.go to dedicated pkg~~
-- inject more variables, ideally configurable with annotations
-- configurable image to inject
+- inject more variables
 ```
 - name: ELASTIC_APM_SERVER_CERT
   valueFrom:
@@ -22,10 +23,6 @@ Rinse and repeat with build and deploy steps.
       key: tls.crt
 - name: ELASTIC_APM_IGNORE_SERVER_CERT
   value: "true"
-- name: ELASTIC_APM_SERVER_URL 
-  value: "http://apm-server-apm-http:8200" 
-- name: ELASTIC_APM_SERVICE_NAME 
-  value: "petclinic" 
 - name: ELASTIC_APM_APPLICATION_PACKAGES 
   value: "org.springframework.samples.petclinic" 
 - name: ELASTIC_APM_ENVIRONMENT 
@@ -38,6 +35,9 @@ Rinse and repeat with build and deploy steps.
       name: apm-server-apm-token 
       key: secret-token
 ```
+- ~~configurable image to inject~~
 - setup checks (golangci-lint, gosec)  // GH actions
 - goreleaser // GH actions
 - public docker image to use // GH actions
+
+For variable injection, since this webhook relies on `namespaceSelector.matchLabels` to operate, having various instances of webhook with different settings is desireable. Thus I took env vars config approach.
