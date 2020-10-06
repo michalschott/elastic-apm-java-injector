@@ -1,10 +1,12 @@
 #!/usr/bin/env sh
 
+set -e
+
 CA_BUNDLE=$(kubectl config view --raw --minify --flatten -o jsonpath='{.clusters[].cluster.certificate-authority-data}')
 
 kind load docker-image local/elastic-apm-java-injector:latest
 
-sed "s/CA_BUNDLE/$CA_BUNDLE/" deploy.yaml | kubectl apply -f-
+sed "s/CA_BUNDLE/$CA_BUNDLE/" hack/deploy.yaml | kubectl apply -f-
 
 kubectl delete pod -l app=elastic-apm-java-injector
 
