@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"os"
 	"time"
 
 	v1beta1 "k8s.io/api/admission/v1beta1"
@@ -13,12 +13,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	m "github.com/michalschott/elastic-apm-java-injector/pkg/mutate"
+	log "github.com/sirupsen/logrus"
 )
 
-func mutate(body []byte, verbose bool) ([]byte, error) {
-	if verbose {
-		log.Printf("recv: %s\n", string(body))
-	}
+func mutate(body []byte) ([]byte, error) {
+	log.Info("recv: %s\n", string(body))
 
 	admReview := v1beta1.AdmissionReview{}
 	if err := json.Unmarshal(body, &admReview); err != nil {
@@ -47,6 +46,7 @@ func mutate(body []byte, verbose bool) ([]byte, error) {
 		p = append(p, m.AddInitContainer(pod)...)
 		p = append(p, m.MutateContainers(pod)...)
 
+		log.Debug("path: %v\n", p)
 		resp.Patch, err = json.Marshal(p)
 		if err != nil {
 			return nil, err
@@ -64,9 +64,7 @@ func mutate(body []byte, verbose bool) ([]byte, error) {
 		}
 	}
 
-	if verbose {
-		log.Printf("resp: %s\n", string(responseBody))
-	}
+	log.Info("resp: %s\n", string(responseBody))
 
 	return responseBody, nil
 }
@@ -76,28 +74,43 @@ func handleMutate(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
-		log.Println(err)
+		log.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
 	}
 
-	mutated, err := mutate(body, true)
+	mutated, err := mutate(body)
 	if err != nil {
-		log.Println(err)
+		log.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(mutated)
 	if err != nil {
-		log.Println(err)
+		log.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "%s", err)
 	}
 }
 
 func main() {
+	logLevel, ok := os.LookupEnv("LOG_LEVEL")
+	if !ok {
+		log.Info("LOG_LEVEL not set, defaulting to info")
+		logLevel = "info"
+	} else {
+		log.Info("LOG_LEVEL set to ", logLevel)
+	}
+
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetOutput(os.Stdout)
+	switch logLevel {
+	case "debug":
+		log.SetLevel(log.WarnLevel)
+	case "error":
+		log.SetLevel(log.ErrorLevel)
+	default:
+		log.SetLevel(log.InfoLevel)
+	}
 
 	mux := http.NewServeMux()
 

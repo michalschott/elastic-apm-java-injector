@@ -33,6 +33,9 @@ spec:
       - name: elastic-apm-java-injector
         image: local/elastic-apm-java-injector:latest
         imagePullPolicy: Never
+        env:
+        - name: LOG_LEVEL
+          value: debug
         volumeMounts:
         - name: ssl
           mountPath: "/ssl"
