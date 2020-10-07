@@ -20,6 +20,17 @@ metadata:
 EOF
 
 cat <<EOF | kubectl apply -f -
+apiVersion: v1
+data:
+  secret-token: c3VwZXJfc2VjcmV0X2FwbV90b2tlbg==
+kind: Secret
+metadata:
+  name: apm-secret-token
+  namespace: test
+type: Opaque
+EOF
+
+cat <<EOF | kubectl apply -f -
 apiVersion: apps/v1
 kind: Deployment
 metadata:

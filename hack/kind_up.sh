@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
 
-kind create cluster --config kind.yaml
+kind create cluster --config hack/kind.yaml
 

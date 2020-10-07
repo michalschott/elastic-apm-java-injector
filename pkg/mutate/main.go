@@ -80,9 +80,7 @@ func MutateContainers(pod *corev1.Pod, extraEnvVars []corev1.EnvVar) (patch []Pa
 
 	for _, v := range pod.Spec.Containers {
 		v.Env = append(v.Env, envVar)
-		for _, envVar := range extraEnvVars {
-			v.Env = append(v.Env, envVar)
-		}
+		v.Env = append(v.Env, extraEnvVars...)
 		v.VolumeMounts = append(v.VolumeMounts, volumeMount)
 		containers = append(containers, v)
 		patch = append(patch, PatchOperation{

@@ -38,6 +38,8 @@ spec:
           value: "debug"
         - name: ELASTIC_APM_SERVICE_NAME
           value: "test app"
+        - name: ELASTIC_APM_SECRET_TOKEN
+          value: "apm-secret-token"
         volumeMounts:
         - name: ssl
           mountPath: "/ssl"

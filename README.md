@@ -14,27 +14,7 @@ Rinse and repeat with build and deploy steps.
 # TO-DO:
 - ~~add some flags (ie loglevel)~~
 - ~~move mutating functions from main.go to dedicated pkg~~
-- inject more variables
-```
-- name: ELASTIC_APM_SERVER_CERT
-  valueFrom:
-    secretKeyRef:
-      name: apm-server-apm-server-cert
-      key: tls.crt
-- name: ELASTIC_APM_IGNORE_SERVER_CERT
-  value: "true"
-- name: ELASTIC_APM_APPLICATION_PACKAGES 
-  value: "org.springframework.samples.petclinic" 
-- name: ELASTIC_APM_ENVIRONMENT 
-  value: test 
-- name: ELASTIC_APM_LOG_LEVEL 
-  value: DEBUG 
-- name: ELASTIC_APM_SECRET_TOKEN 
-  valueFrom: 
-    secretKeyRef: 
-      name: apm-server-apm-token 
-      key: secret-token
-```
+- ~~inject more variables~~
 - ~~configurable image to inject~~
 - setup checks (golangci-lint, gosec)  // GH actions
 - goreleaser // GH actions

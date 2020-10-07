@@ -101,10 +101,14 @@ type injectorConfig struct {
 var config injectorConfig
 
 const (
-	defaultLogLevel              = "info"
-	defaultInitContainerImage    = "docker.elastic.co/observability/apm-agent-java:1.12.0"
-	defaultElasticApmServerUrl   = "http://apm-server-apm-http:8200"
-	defaultElasticApmServiceName = "defaultServiceName"
+	defaultLogLevel                      = "info"
+	defaultInitContainerImage            = "docker.elastic.co/observability/apm-agent-java:1.12.0"
+	defaultElasticApmServerUrl           = "http://apm-server-apm-http:8200"
+	defaultElasticApmServiceName         = "defaultServiceName"
+	defaultElasticApmApplicationPackages = ""
+	defaultElasticApmEnvironment         = "defaultEnvironment"
+	defaultElasticApmLogLevel            = "debug"
+	defaultElasticApmIgnoreServerCert    = "true"
 )
 
 func init() {
@@ -133,7 +137,7 @@ func main() {
 
 	initContainerImage, ok := os.LookupEnv("INIT_CONTAINER_IMAGE")
 	if !ok {
-		log.Debug("INIT_CONTAINER_IMAGE not set, defaulting to ", defaultInitContainerImage)
+		log.Warning("INIT_CONTAINER_IMAGE not set, defaulting to ", defaultInitContainerImage)
 		config.initContainerImage = defaultInitContainerImage
 	} else {
 		config.initContainerImage = initContainerImage
@@ -142,7 +146,7 @@ func main() {
 
 	elasticApmServerUrl, ok := os.LookupEnv("ELASTIC_APM_SERVER_URL")
 	if !ok {
-		log.Debug("ELASTIC_APM_SERVER_URL not set, defaulting to ", defaultElasticApmServerUrl)
+		log.Warning("ELASTIC_APM_SERVER_URL not set, defaulting to ", defaultElasticApmServerUrl)
 		elasticApmServerUrl = defaultElasticApmServerUrl
 	}
 	config.envVars = append(config.envVars, corev1.EnvVar{
@@ -153,7 +157,7 @@ func main() {
 
 	elasticApmServiceName, ok := os.LookupEnv("ELASTIC_APM_SERVICE_NAME")
 	if !ok {
-		log.Debug("ELASTIC_APM_SERVICE_NAME not set, defaulting to ", defaultElasticApmServiceName)
+		log.Warning("ELASTIC_APM_SERVICE_NAME not set, defaulting to ", defaultElasticApmServiceName)
 		elasticApmServiceName = defaultElasticApmServiceName
 	}
 	config.envVars = append(config.envVars, corev1.EnvVar{
@@ -162,10 +166,70 @@ func main() {
 	})
 	log.Debug("elasticApmServerUrl = " + elasticApmServiceName)
 
+	elasticApmApplicationPackages, ok := os.LookupEnv("ELASTIC_APM_APPLICATION_PACKAGES")
+	if !ok {
+		log.Warning("ELASTIC_APM_APPLICATION_PACKAGES not set, defaulting to ", defaultElasticApmApplicationPackages)
+		elasticApmApplicationPackages = defaultElasticApmApplicationPackages
+	}
+	config.envVars = append(config.envVars, corev1.EnvVar{
+		Name:  "ELASTIC_APM_APPLICATION_PACKAGES",
+		Value: elasticApmApplicationPackages,
+	})
+	log.Debug("elasticApmApplicationPackages = " + elasticApmApplicationPackages)
+
+	elasticApmEnvironment, ok := os.LookupEnv("ELASTIC_APM_ENVIRONMENT")
+	if !ok {
+		log.Warning("ELASTIC_APM_ENVIRONMENT not set, defaulting to ", defaultElasticApmEnvironment)
+		elasticApmEnvironment = defaultElasticApmEnvironment
+	}
+	config.envVars = append(config.envVars, corev1.EnvVar{
+		Name:  "ELASTIC_APM_ENVIRONMENT",
+		Value: elasticApmEnvironment,
+	})
+	log.Debug("elasticApmEnvironment = " + elasticApmEnvironment)
+
+	elasticApmLogLevel, ok := os.LookupEnv("ELASTIC_APM_LOG_LEVEL")
+	if !ok {
+		log.Warning("ELASTIC_APM_LOG_LEVEL not set, defaulting to ", defaultElasticApmLogLevel)
+		elasticApmLogLevel = defaultElasticApmLogLevel
+	}
+	config.envVars = append(config.envVars, corev1.EnvVar{
+		Name:  "ELASTIC_APM_LOG_LEVEL",
+		Value: elasticApmLogLevel,
+	})
+	log.Debug("elasticApmLogLevel = " + elasticApmLogLevel)
+
+	elasticApmIgnoreServerCert, ok := os.LookupEnv("ELASTIC_APM_IGNORE_SERVER_CERT")
+	if !ok {
+		log.Warning("ELASTIC_APM_IGNORE_SERVER_CERT not set, defaulting to ", defaultElasticApmIgnoreServerCert)
+		elasticApmIgnoreServerCert = defaultElasticApmIgnoreServerCert
+	}
+	config.envVars = append(config.envVars, corev1.EnvVar{
+		Name:  "ELASTIC_APM_IGNORE_SERVER_CERT",
+		Value: elasticApmIgnoreServerCert,
+	})
+	log.Debug("elasticApmIgnoreServerCert = " + elasticApmIgnoreServerCert)
+
+	elasticApmSecretToken, ok := os.LookupEnv("ELASTIC_APM_SECRET_TOKEN")
+	if !ok {
+		log.Fatal("ELASTIC_APM_SECRET_TOKEN not set")
+	}
+	config.envVars = append(config.envVars, corev1.EnvVar{
+		Name: "ELASTIC_APM_SECRET_TOKEN",
+		ValueFrom: &corev1.EnvVarSource{
+			SecretKeyRef: &corev1.SecretKeySelector{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: elasticApmSecretToken,
+				},
+				Key: "secret-token",
+			},
+		},
+	})
+	log.Debug("elasticApmIgnoreServerCert = " + elasticApmIgnoreServerCert)
+
+	// https server
 	mux := http.NewServeMux()
-
 	mux.HandleFunc("/mutate", handleMutate)
-
 	s := &http.Server{
 		Addr:           ":8443",
 		Handler:        mux,
@@ -173,6 +237,5 @@ func main() {
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1048576
 	}
-
 	log.Fatal(s.ListenAndServeTLS("/ssl/elastic-apm-java-injector.pem", "/ssl/elastic-apm-java-injector.key"))
 }
