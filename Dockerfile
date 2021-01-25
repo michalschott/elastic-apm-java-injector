@@ -1,4 +1,4 @@
-FROM busybox:1.32.0
+FROM busybox:1.33.0
 
 ADD build/elastic-apm-java-injector /
 
